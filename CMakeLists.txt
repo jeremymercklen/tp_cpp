@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.29)
 
 # Nom du projet et de l'exécutable généré
-project(template_cpp_cmake)
+project(tp_cpp)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
@@ -37,18 +37,21 @@ target_sources(${PROJECT_NAME}
         FILE_SET CXX_MODULES
         FILES
         ${SRC_DIR}/exo1.ixx
+        ${SRC_DIR}/exo2.ixx
 )
 compile_options(${PROJECT_NAME})
 
 # Exécutable et liste des fichiers sources des tests unitaires
 add_executable(tests ${TEST_FILES}
         ${TESTS_DIR}/exo1.cpp
+        ${TESTS_DIR}/exo2.cpp
 )
 target_sources(tests
         PUBLIC
         FILE_SET CXX_MODULES
         FILES
         ${SRC_DIR}/exo1.ixx
+        ${SRC_DIR}/exo2.ixx
 )
 #######################################################
 
