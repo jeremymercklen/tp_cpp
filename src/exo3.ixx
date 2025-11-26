@@ -48,8 +48,8 @@ export namespace exo3 {
             return Vector { x * value, y * value, z * value };
         }
 
-        bool operator==(const Vector vector) const {
-            return x == vector.x && y == vector.y && z == vector.z;
+        friend bool operator==(const Vector lhs, const Vector rhs) {
+            return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
         }
     };
 }
