@@ -41,6 +41,7 @@ target_sources(${PROJECT_NAME}
         ${SRC_DIR}/exo3.ixx
         ${SRC_DIR}/exo4.ixx
         ${SRC_DIR}/exo5.ixx
+        ${SRC_DIR}/exo6.ixx
 )
 compile_options(${PROJECT_NAME})
 
@@ -51,6 +52,7 @@ add_executable(tests ${TEST_FILES}
         ${TESTS_DIR}/exo3.cpp
         ${TESTS_DIR}/exo4.cpp
         ${TESTS_DIR}/exo5.cpp
+        ${TESTS_DIR}/exo6.cpp
 )
 target_sources(tests
         PUBLIC
@@ -61,6 +63,7 @@ target_sources(tests
         ${SRC_DIR}/exo3.ixx
         ${SRC_DIR}/exo4.ixx
         ${SRC_DIR}/exo5.ixx
+        ${SRC_DIR}/exo6.ixx
 )
 #######################################################
 
