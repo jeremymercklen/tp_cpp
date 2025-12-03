@@ -25,6 +25,17 @@ set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 # Répertoire contenant les sources des tests unitaires
 set(TESTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+include(FetchContent)
+FetchContent_Declare(SFML
+        GIT_REPOSITORY https://github.com/SFML/SFML.git
+        GIT_TAG 3.0.2
+        GIT_SHALLOW ON
+        EXCLUDE_FROM_ALL
+        SYSTEM)
+FetchContent_MakeAvailable(SFML)
+
 #######################################################
 # Partie à mettre à jour manuellement
 # Liste des fichiers sources des modules des exercices
@@ -42,10 +53,16 @@ target_sources(${PROJECT_NAME}
         ${SRC_DIR}/exo4.ixx
         ${SRC_DIR}/exo5.ixx
         ${SRC_DIR}/exo6.ixx
+        ${SRC_DIR}/exo7.ixx
+        ${SRC_DIR}/exo8.ixx
+        ${SRC_DIR}/exo9.ixx
+        ${SRC_DIR}/train.ixx
+        ${SRC_DIR}/networkelement.ixx
 )
 compile_options(${PROJECT_NAME})
 
 # Exécutable et liste des fichiers sources des tests unitaires
+
 add_executable(tests ${TEST_FILES}
         ${TESTS_DIR}/exo1.cpp
         ${TESTS_DIR}/exo2.cpp
@@ -53,6 +70,8 @@ add_executable(tests ${TEST_FILES}
         ${TESTS_DIR}/exo4.cpp
         ${TESTS_DIR}/exo5.cpp
         ${TESTS_DIR}/exo6.cpp
+        ${TESTS_DIR}/exo8.cpp
+        ${TESTS_DIR}/exo9.cpp
 )
 target_sources(tests
         PUBLIC
@@ -64,8 +83,16 @@ target_sources(tests
         ${SRC_DIR}/exo4.ixx
         ${SRC_DIR}/exo5.ixx
         ${SRC_DIR}/exo6.ixx
+        ${SRC_DIR}/exo7.ixx
+        ${SRC_DIR}/exo8.ixx
+        ${SRC_DIR}/exo9.ixx
+        ${SRC_DIR}/train.ixx
+        ${SRC_DIR}/networkelement.ixx
 )
 #######################################################
+
+#add_executable(main src/main.cpp)
+target_link_libraries(${PROJECT_NAME} SFML::Graphics)
 
 # bibliothèque pour les tests unitaires
 include(cmake/catch2.cmake)
