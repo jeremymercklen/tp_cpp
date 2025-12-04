@@ -93,6 +93,7 @@ target_sources(tests
 
 #add_executable(main src/main.cpp)
 target_link_libraries(${PROJECT_NAME} SFML::Graphics)
+target_link_libraries(${PROJECT_NAME} SFML::Audio)
 
 # bibliothèque pour les tests unitaires
 include(cmake/catch2.cmake)

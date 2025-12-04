@@ -6,7 +6,6 @@ module;
 
 export module train;
 
-// Import du module contenant Direction et GridPos
 import networkelement;
 
 export struct Train {
@@ -31,9 +30,6 @@ export struct Train {
         targetPos = position;
     }
 
-    // On passe les infos nécessaires pour naviguer : 
-    // - map des tiles (abstraite ou template)
-    // - constantes de grille
     template<typename NetworkMap>
     void update(float dt, const NetworkMap& network, float startX, float startY, float tileSize) {
         if (isStopped) {
@@ -74,9 +70,7 @@ export struct Train {
     void findNextTile(const NetworkMap& network, float startX, float startY, float tileSize) {
         int gx = static_cast<int>(std::round((position.x - startX - tileSize/2.f) / tileSize));
         int gy = static_cast<int>(std::round((position.y - startY - tileSize/2.f) / tileSize));
-        
-        // On suppose que NetworkMap est std::map<pair<int,int>, NetworkElement>
-        // et que NetworkElement a un membre 'connections' compatible avec Direction
+
         if (network.count({gx, gy})) {
             const auto& currentTile = network.at({gx, gy});
             
@@ -87,9 +81,6 @@ export struct Train {
             else if (currentDir == Direction::Down) from = Direction::Up;
 
             for (auto d : currentTile.connections) {
-                // Conversion si nécessaire, ici on suppose que l'enum est le même
-                // ou que d est castable.
-                // Comme Direction est définie ici, il faut que NetworkElement utilise CE Direction ou un compatible.
                 if (d != from) {
                     currentDir = d;
                     int nextGx = gx;

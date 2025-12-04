@@ -43,14 +43,20 @@ export struct NetworkElement {
     
     void rotateSwitch() {
         currentAngle += 90.f;
-        setupConnections(currentAngle); 
+        setupConnections(currentAngle);
         if (sprite) {
-            sprite->setRotation(sf::degrees(currentAngle)); 
+            sprite->setRotation(sf::degrees(currentAngle));
         }
     }
 
     void draw(sf::RenderWindow& window) {
         if (type == ElementType::Station) window.draw(shape);
         else if (sprite.has_value()) window.draw(*sprite);
+    }
+
+    void draw(sf::RenderWindow& window) const {
+        if (sprite.has_value()) {
+            window.draw(*sprite);
+        }
     }
 };
