@@ -48,7 +48,7 @@ int main() {
     auto updateTitle = [&]() {
         std::string modeStr;
         switch(currentMode) {
-            case EditorMode::Play: modeStr = "JEU (Clic: Aiguillage)"; break;
+            case EditorMode::Play: modeStr = "JEU (Clic G: Aiguillage, Clic D: Signal)"; break;
             case EditorMode::BuildRail: modeStr = "EDITEUR: Rail (R: Pivoter)"; break;
             case EditorMode::BuildSwitch: modeStr = "EDITEUR: Aiguillage (R: Pivoter)"; break;
             case EditorMode::BuildStation: modeStr = "EDITEUR: Gare (Clic sur rail)"; break;
@@ -91,31 +91,119 @@ int main() {
     for (int i=0; i<HEIGHT_TILES; ++i) addElement(ElementType::Rail, railTexture, START_X, START_Y + (HEIGHT_TILES-i)*TILE_SIZE, 270.f);
     addElement(ElementType::Switch, switchTexture, START_X, START_Y, 0.f);
 
-    for (int i=0; i<WIDTH_TILES; ++i) addElement(ElementType::Rail, railTexture, START_X + (WIDTH_TILES + 1 + i + 1)*TILE_SIZE, START_Y, 0.f);
-    addElement(ElementType::Switch, switchTexture, START_X + (WIDTH_TILES*2 + 2)*TILE_SIZE, START_Y, 90.f);
-    for (int i=0; i<HEIGHT_TILES; ++i) addElement(ElementType::Rail, railTexture, START_X + (WIDTH_TILES*2 + 2)*TILE_SIZE, START_Y + (i+1)*TILE_SIZE, 90.f);
-    addElement(ElementType::Switch, switchTexture, START_X + (WIDTH_TILES*2 + 2)*TILE_SIZE, START_Y + (HEIGHT_TILES+1)*TILE_SIZE, 180.f);
-    for (int i=0; i<WIDTH_TILES; ++i) addElement(ElementType::Rail, railTexture, START_X + (WIDTH_TILES*2 + 2 - 1 - i)*TILE_SIZE, START_Y + (HEIGHT_TILES+1)*TILE_SIZE, 180.f);
+        // --- DÉPLACEMENT DES DÉCLARATIONS ICI ---
+        std::vector<Train> trains;
+        std::vector<sf::Vector2f> prevPositions;
+        std::vector<sf::Vector2f> lastDirections;
 
-    sf::RectangleShape trainStation;
+        // --- REFECTION DE LA MAP PAR DEFAUT ---
+        // Circuit avec une boucle principale et une traverse centrale
+        int leftGrid = 2;
+        int widthGrid = 12;
+        int rightGrid = leftGrid + widthGrid; // 14
+        int topGrid = 2;
+        int heightGrid = 8;
+        int midY = topGrid + heightGrid / 2; // 6
+
+        auto createRail = [&](int gx, int gy, float angle) {
+             float px = START_X + gx * TILE_SIZE;
+             float py = START_Y + gy * TILE_SIZE;
+             addElement(ElementType::Rail, railTexture, px, py, angle);
+        };
+        auto createSwitch = [&](int gx, int gy, float angle) {
+             float px = START_X + gx * TILE_SIZE;
+             float py = START_Y + gy * TILE_SIZE;
+             addElement(ElementType::Switch, switchTexture, px, py, angle);
+        };
+
+        // 1. Boucle Extérieure
+        // Ligne Haut (y=2)
+        // Coin HG -> Switch (permet d'aller à Droite ou en Bas si on arrivait de gauche/haut, ici c'est un coin simple mais mettons un switch pour le style/futur)
+        createSwitch(leftGrid, topGrid, 0.f); // 0° => Right, Down
+        
+        for(int x=leftGrid+1; x<rightGrid; ++x) {
+            createRail(x, topGrid, 0.f);
+            // Gare unique au Nord
+            if (x == leftGrid + widthGrid/2) networkMap[{x, topGrid}].hasPlatform = true;
+        }
+        
+        // Coin HD -> Switch
+        createSwitch(rightGrid, topGrid, 90.f); // 90° => Left, Down (visuellement ça connecte Gauche et Bas)
+
+        // Ligne Droite (x=14)
+        for(int y=topGrid+1; y<topGrid+heightGrid; ++y) {
+            if (y == midY) {
+                // Jonction Droite (Traverse) : Switch 3 voies (Haut, Bas, Gauche)
+                // On met un switch orienté 90° (Left, Down) par défaut.
+                // En cliquant dessus (rotateSwitch), il passera à (Left, Up) -> 180°, etc.
+                createSwitch(rightGrid, y, 90.f);
+            } else {
+                createRail(rightGrid, y, 90.f);
+            }
+        }
+        
+        // Coin BD -> Switch
+        createSwitch(rightGrid, topGrid+heightGrid, 180.f); // 180° => Left, Up
+
+        // Ligne Bas (y=10)
+        for(int x=leftGrid+1; x<rightGrid; ++x) {
+            createRail(x, topGrid+heightGrid, 0.f);
+        }
+        
+        // Coin BG -> Switch
+        createSwitch(leftGrid, topGrid+heightGrid, 270.f); // 270° => Right, Up
+
+        // Ligne Gauche (x=2)
+        for(int y=topGrid+1; y<topGrid+heightGrid; ++y) {
+            if (y == midY) {
+                // Jonction Gauche (Traverse) : Switch 3 voies (Haut, Bas, Droite)
+                // 270° => Right, Up par défaut.
+                createSwitch(leftGrid, y, 270.f); 
+            } else {
+                createRail(leftGrid, y, 90.f);
+                // Gare Ouest
+                if (y == midY + 2) networkMap[{leftGrid, y}].hasPlatform = true;
+            }
+        }
+        
+        // Traverse Centrale (y=6)
+        for(int x=leftGrid+1; x<rightGrid; ++x) {
+            createRail(x, midY, 0.f);
+        }
+
+        // Réinitialisation des trains
+        trains.clear();
+        prevPositions.clear();
+        lastDirections.clear();
+
+        // Train 1 (Sens horaire) : Départ Gare Nord, va vers Droite
+        sf::Vector2f pos1 = { START_X + (leftGrid + widthGrid/2) * TILE_SIZE + TILE_SIZE/2.f, START_Y + topGrid * TILE_SIZE + TILE_SIZE/2.f };
+        trains.emplace_back(pos1, Direction::Right);
+        trains.back().maxSpeed = 200.f; trains.back().speed = 0.f;
+        prevPositions.push_back(pos1);
+        lastDirections.push_back({1.f, 0.f});
+
+        // Train 2 (Sens anti-horaire) : Départ Bas, va vers Gauche
+        sf::Vector2f pos2 = { START_X + (leftGrid + widthGrid/2) * TILE_SIZE + TILE_SIZE/2.f, START_Y + (topGrid + heightGrid) * TILE_SIZE + TILE_SIZE/2.f };
+        trains.emplace_back(pos2, Direction::Left);
+        trains.back().maxSpeed = 250.f; trains.back().speed = 0.f;
+        prevPositions.push_back(pos2);
+        lastDirections.push_back({-1.f, 0.f});
+
+        // Train 3 (Sur la traverse) : Départ Centre, va vers Droite
+        sf::Vector2f pos3 = { START_X + (leftGrid + widthGrid/2) * TILE_SIZE + TILE_SIZE/2.f, START_Y + midY * TILE_SIZE + TILE_SIZE/2.f };
+        trains.emplace_back(pos3, Direction::Right);
+        trains.back().maxSpeed = 150.f; trains.back().speed = 0.f;
+        prevPositions.push_back(pos3);
+        lastDirections.push_back({1.f, 0.f});
+
+        sf::RectangleShape trainStation;
     trainStation.setSize({TILE_SIZE, 20.f});
     trainStation.setFillColor(sf::Color(200, 50, 50, 255));
     trainStation.setOrigin({TILE_SIZE / 2.f, 10.f});
 
     if (networkMap.contains({1, 0})) networkMap[{1, 0}].hasPlatform = true;
     if (networkMap.contains({2, 0})) networkMap[{2, 0}].hasPlatform = true;
-
-    std::vector<Train> trains;
-    std::vector<sf::Vector2f> prevPositions;
-    std::vector<sf::Vector2f> lastDirections;
-
-    sf::Vector2f startPos = { START_X + 1 * TILE_SIZE + TILE_SIZE/2.f, START_Y + TILE_SIZE/2.f };
-    
-    trains.emplace_back(startPos, Direction::Right);
-    trains.back().maxSpeed = 300.f;
-    trains.back().speed = 300.f;
-    prevPositions.push_back(startPos);
-    lastDirections.push_back({1.f, 0.f});
 
     sf::View view = window.getDefaultView();
     view.setCenter({START_X + (WIDTH_TILES + 1) * TILE_SIZE, START_Y + (HEIGHT_TILES / 2.f) * TILE_SIZE});
@@ -142,7 +230,7 @@ int main() {
             }
             if (const auto* scrolled = event->getIf<sf::Event::MouseWheelScrolled>()) {
                 if (scrolled->wheel == sf::Mouse::Wheel::Vertical) {
-                    if (scrolled->delta > 0) view.zoom(0.9f); else view.zoom(1.1f);
+                    if (scrolled->delta > 0) view.zoom(0.1f); else view.zoom(1.1f);
                 }
             }
 
@@ -153,9 +241,9 @@ int main() {
                 if (kb->code == sf::Keyboard::Key::Num4) { currentMode = EditorMode::BuildStation; updateTitle(); }
                 if (kb->code == sf::Keyboard::Key::Num5) { currentMode = EditorMode::Delete; updateTitle(); }
                 if (kb->code == sf::Keyboard::Key::Num6) { currentMode = EditorMode::PlaceTrain; updateTitle(); }
-        
-                if (kb->code == sf::Keyboard::Key::R) { 
-                    buildRotation += 90.f; 
+
+                if (kb->code == sf::Keyboard::Key::R) {
+                    buildRotation += 90.f;
                     if (buildRotation >= 360.f) buildRotation = 0.f;
                 }
             }
@@ -164,7 +252,7 @@ int main() {
                 if (mb->button == sf::Mouse::Button::Left) {
                     sf::Vector2i pixelPos = {mb->position.x, mb->position.y};
                     sf::Vector2f worldPos = window.mapPixelToCoords(pixelPos, view);
-                
+
                     int gx = static_cast<int>(std::round((worldPos.x - START_X - TILE_SIZE/2.f) / TILE_SIZE));
                     int gy = static_cast<int>(std::round((worldPos.y - START_Y - TILE_SIZE/2.f) / TILE_SIZE));
 
@@ -205,12 +293,13 @@ int main() {
                     }
                 }
                 else if (mb->button == sf::Mouse::Button::Right) {
+                    // Gestion du clic droit
+                     sf::Vector2i pixelPos = {mb->position.x, mb->position.y};
+                     sf::Vector2f worldPos = window.mapPixelToCoords(pixelPos, view);
+
                     if (currentMode == EditorMode::PlaceTrain) {
-                        sf::Vector2i pixelPos = {mb->position.x, mb->position.y};
-                        sf::Vector2f worldPos = window.mapPixelToCoords(pixelPos, view);
-                            
                         for (size_t i = 0; i < trains.size(); ) {
-                            float d2 = (trains[i].position.x - worldPos.x)*(trains[i].position.x - worldPos.x) + 
+                            float d2 = (trains[i].position.x - worldPos.x)*(trains[i].position.x - worldPos.x) +
                                        (trains[i].position.y - worldPos.y)*(trains[i].position.y - worldPos.y);
                             if (d2 < 50.f * 50.f) {
                                 trains.erase(trains.begin() + i);
@@ -218,6 +307,17 @@ int main() {
                                 lastDirections.erase(lastDirections.begin() + i);
                             } else {
                                 ++i;
+                            }
+                        }
+                    }
+                    else if (currentMode == EditorMode::Play) {
+                        int gx = static_cast<int>(std::round((worldPos.x - START_X - TILE_SIZE/2.f) / TILE_SIZE));
+                        int gy = static_cast<int>(std::round((worldPos.y - START_Y - TILE_SIZE/2.f) / TILE_SIZE));
+                        
+                        if (networkMap.contains({gx, gy})) {
+                            NetworkElement& el = networkMap[{gx, gy}];
+                            if (el.type == ElementType::Switch) {
+                                el.signalGreen = !el.signalGreen; // Bascule Rouge/Vert
                             }
                         }
                     }
@@ -240,7 +340,7 @@ int main() {
 
         for (size_t i = 0; i < trains.size(); ++i) {
             float acceleration = 200.f * dtSeconds;
-            float brakingDecel = 800.f * dtSeconds; 
+            float brakingDecel = 800.f * dtSeconds;
 
             float finalTargetSpeed = trains[i].maxSpeed;
             bool hardStopRequested = false;
@@ -258,23 +358,25 @@ int main() {
                 sf::Vector2f diff = trains[j].position - trains[i].position;
                 float distSq = diff.x*diff.x + diff.y*diff.y;
                 float dist = std::sqrt(distSq);
-                    
+
                 float stopDist = 65.f;
                 float slowDist = 150.f;
 
                 if (dist < slowDist) {
-                    float dot = diff.x * myDir.x + diff.y * myDir.y;
+                    sf::Vector2f diffNorm = diff / dist;
 
-                    if (dot > 0) {
-                        float limitSpeed = trains[i].maxSpeed;
+                    float dot = diffNorm.x * myDir.x + diffNorm.y * myDir.y;
 
-                            if (dist < stopDist) {
-                                limitSpeed = 0.f;
-                                hardStopRequested = true;
-                        } else {
-                            float factor = (dist - stopDist) / (slowDist - stopDist);
-                            limitSpeed = trains[i].maxSpeed * factor * 0.6f;
-                        }
+                    if (dot > 0.8f) {
+                            float limitSpeed = trains[i].maxSpeed;
+
+                                if (dist < stopDist) {
+                                    limitSpeed = 0.f;
+                                    hardStopRequested = true;
+                            } else {
+                                float factor = (dist - stopDist) / (slowDist - stopDist);
+                                limitSpeed = trains[i].maxSpeed * factor * 0.6f;
+                            }
 
                         if (limitSpeed < finalTargetSpeed) {
                             finalTargetSpeed = limitSpeed;
@@ -296,14 +398,73 @@ int main() {
             }
 
             prevPositions[i] = trains[i].position;
-            trains[i].update(dtSeconds, networkMap, START_X, START_Y, TILE_SIZE);
+            // Passage de 'trains' (le vecteur complet) à la méthode update
+            trains[i].update(dtSeconds, networkMap, trains, START_X, START_Y, TILE_SIZE);
         }
+
+        for (auto& [pos, el] : networkMap) {
+            if (el.type == ElementType::Switch) {
+                el.autoBlocked = false;
+
+                for (auto dir : el.connections) {
+                    // Scan dans cette direction
+                    int simGx = pos.first;
+                    int simGy = pos.second;
+                    
+                    if (dir == Direction::Right) simGx++;
+                    else if (dir == Direction::Left) simGx--;
+                    else if (dir == Direction::Down) simGy++;
+                    else if (dir == Direction::Up) simGy++;
+                    
+                    Direction simDir = dir;
+                    
+                    // Scan sur X cases
+                    for(int k=0; k<10; ++k) {
+                         // Vérif train
+                        for(const auto& t : trains) {
+                            int tgx = static_cast<int>(std::round((t.position.x - START_X - TILE_SIZE/2.f) / TILE_SIZE));
+                            int tgy = static_cast<int>(std::round((t.position.y - START_Y - TILE_SIZE/2.f) / TILE_SIZE));
+                            if (tgx == simGx && tgy == simGy) {
+                                el.autoBlocked = true;
+                                goto end_scan; // Sortie rapide
+                            }
+                        }
+
+                        if (!networkMap.count({simGx, simGy})) break;
+                        const auto& nextTile = networkMap.at({simGx, simGy});
+                        if (nextTile.type == ElementType::Switch) break; // Fin du segment
+                        
+                        // Trouver sortie
+                        Direction arriveFrom = Direction::None;
+                        if (simDir == Direction::Right) arriveFrom = Direction::Left;
+                        else if (simDir == Direction::Left) arriveFrom = Direction::Right;
+                        else if (simDir == Direction::Up) arriveFrom = Direction::Down;
+                        else if (simDir == Direction::Down) arriveFrom = Direction::Up;
+
+                        bool found = false;
+                        for(auto d : nextTile.connections) {
+                            if(d != arriveFrom) {
+                                simDir = d; found = true; break;
+                            }
+                        }
+                        if(!found) break;
+
+                        if (simDir == Direction::Right) simGx++;
+                        else if (simDir == Direction::Left) simGx--;
+                        else if (simDir == Direction::Down) simGy++;
+                        else if (simDir == Direction::Up) simGy++;
+                    }
+                }
+                end_scan:;
+            }
+        }
+
 
         window.clear(sf::Color::Black);
         window.setView(view);
 
         if (hasBg) window.draw(backgroundSprite);
-    
+
         for (auto &val: networkMap | std::views::values) {
             val.draw(window);
             if (val.hasPlatform && val.sprite.has_value()) {
